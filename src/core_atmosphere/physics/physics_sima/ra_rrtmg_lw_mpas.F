@@ -6,6 +6,13 @@
  use ra_rrtmg_shared,only    : inirad,reicalc,relcalc,retab
  use ra_rrtmg_vinterp,only   : vinterp_ozn
  use mcica_subcol_gen_lw,only: mcica_subcol_lw
+ use mpas_atmphys_constants,only : cp,g=>gravity
+ use ra_rrtmg_vinterp,only: vinterp_ozn
+
+ use parrrtm, only : nbndlw, ngptlw
+ use rrtmg_lw_init, only: rrtmg_lw_ini
+ use rrtmg_lw_rad,only : rrtmg_lw_run
+
 
  implicit none
  private
@@ -13,6 +20,9 @@
           rrtmg_lw_mpas_timestep_init, &
           rrtmg_lw_mpas_timestep_final
 
+    ! For buffer layer adjustment.  Steven Cavallo, Dec 2010.
+    integer , save    :: nlayers
+    real, PARAMETER :: deltap = 4.  ! Pressure interval for buffer layer in mb
 
  contains
 
@@ -43,6 +53,7 @@
                        n2ovmr,o2vmr,cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr, &
                        emis,inflglw,iceflglw,liqflglw,cldfmcl,taucmcl, &
                        ciwpmcl,clwpmcl,cswpmcl,reicmcl,relqmcl,resnmcl, &
+                       rei,rel,res,                            &
                        tauaer,uflx,dflx,hr,uflxc,dflxc,hrc, &
                        ids,ide, kds,kde,                          & 
                        ims,ime, kms,kme,                          &
@@ -80,7 +91,7 @@
  integer,intent(out):: ncol,nlay,icld,inflglw,iceflglw,liqflglw
  real,intent(out),dimension(:,:),allocatable:: &
     plev,tlev,play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
-    cfc12vmr,cfc22vmr,ccl4vmr,cldfrac,relqmcl,reicmcl,resnmcl
+    cfc12vmr,cfc22vmr,ccl4vmr,relqmcl,reicmcl,resnmcl,rel,rei,res
  real,intent(out),dimension(:,:),allocatable:: uflx,dflx,uflxc,dflxc,hr,hrc
  real,intent(out),dimension(:,:,:),allocatable:: cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl,tauaer
  real,intent(out),dimension(1)::tsfc
@@ -104,7 +115,7 @@
  real,dimension(1):: landfrac,landm,snowh,icefrac
  real,dimension(1,1:kte-kts+1):: pdel,cliqwp,cicewp,csnowp,reliq,reice,resnow
  real,dimension(:,:,:),allocatable:: taucld
- real,dimension(:,:),allocatable:: clwpth,ciwpth,cswpth,rel,rei,res,cldfrac
+ real,dimension(:,:),allocatable:: clwpth,ciwpth,cswpth,cldfrac
 
  real,dimension(kts:kte):: &
     cldfra1d,dz1d,p1d,t1d,qv1d,qc1d,qr1d,qi1d,qs1d,qg1d,o31d
@@ -617,6 +628,14 @@
        enddo
     end do i_loop !end longitude loop.
 
+       if(allocated(o3mmr)   ) deallocate(o3mmr   )
+       if(allocated(varint)  ) deallocate(varint  )
+       if(allocated(clwpth)  ) deallocate(clwpth  )
+       if(allocated(ciwpth)  ) deallocate(ciwpth  )
+       if(allocated(cswpth)  ) deallocate(cswpth  )
+       if(allocated(cldfrac) ) deallocate(cldfrac )
+       if(allocated(taucld)  ) deallocate(taucld  )
+
  errmsg = 'rrtmg_lw_mpas_timestep_init OK'
  errflg = 0
 
@@ -642,7 +661,13 @@
 subroutine rrtmg_lw_mpas_timestep_final( &
                        pi2d,icloud,cldfra2d,                      &
                        dflx, dflxc, uflx, uflxc,                  &
-                       hr, rel, rei, res,                         &
+                       hr, hrc, rel, rei, res,                         &
+                       play, plev, tlay, &
+                       tlev, h2ovmr,o3vmr,co2vmr,ch4vmr, &
+                       n2ovmr  , o2vmr   , cfc11vmr , cfc12vmr , cfc22vmr , ccl4vmr , &
+                       cldfmcl, taucmcl , &
+                       ciwpmcl , clwpmcl , cswpmcl  , reicmcl  , relqmcl  , resnmcl , &
+                       tauaer  , &
                        glw,olr,lwcf,rthratenlw,                   &
                        lwupt,lwuptc,lwdnt,lwdntc,                 &
                        lwupb,lwupbc,lwdnb,lwdnbc,                 &
@@ -661,18 +686,24 @@ subroutine rrtmg_lw_mpas_timestep_final( &
  integer,intent(in):: icloud
 
  real,intent(in),dimension(ims:ime,kms:kme):: pi2d,cldfra2d
- real,intent(in),dimension(ims:ime,kms:kme):: dflx, dflxc, uflx, uflxc
- real,intent(in),dimension(ims:ime,kms:kme):: hr, rel, rei, res
 
 !--- inout arguments:
+ real,intent(inout),dimension(:,:),allocatable:: dflx, dflxc, uflx, uflxc
+ real,intent(inout),dimension(:,:),allocatable:: hr, hrc, rel, rei, res
+
+ real,intent(inout),dimension(:,:),allocatable:: &
+    plev,tlev,play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
+    cfc12vmr,cfc22vmr,ccl4vmr,relqmcl,reicmcl,resnmcl
+ real,intent(inout),dimension(:,:,:),allocatable:: cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl,tauaer
+
  
 !--- output arguments:
- real,intent(out),dimension(ims:ime,kms:kme):: lwupflx, lwupflxc, lwdnflx, lwdnflxc
- real,intent(out),dimension(ims:ime,kms:kme):: rre_cloud,rre_ice,rre_snow
+ real,intent(out),dimension(ims:ime,kms:kme),optional:: lwupflx, lwupflxc, lwdnflx, lwdnflxc
+ real,intent(out),dimension(ims:ime,kms:kme),optional:: rre_cloud,rre_ice,rre_snow
  real,intent(out),dimension(ims:ime,kms:kme):: rthratenlw
  real,intent(out),dimension(ims:ime):: glw,olr,lwcf
- real,intent(out),dimension(ims:ime):: lwupt,lwuptc,lwdnt,lwdntc
- real,intent(out),dimension(ims:ime):: lwupb,lwupbc,lwdnb,lwdnbc
+ real,intent(out),dimension(ims:ime),optional:: lwupt,lwuptc,lwdnt,lwdntc
+ real,intent(out),dimension(ims:ime),optional:: lwupb,lwupbc,lwdnb,lwdnbc
  character(len=*),intent(out):: &
     errmsg       ! output error message (-).
 
@@ -680,9 +711,10 @@ subroutine rrtmg_lw_mpas_timestep_final( &
     errflg       ! output error flag (-).
 
 !local variables and arrays:
- integer:: i,k
+ integer:: i,k,ncol
  real,dimension(kts:kte):: tten1d
 
+    ncol = 1
 
     i_loop: do i = its,ite
 
@@ -737,8 +769,8 @@ subroutine rrtmg_lw_mpas_timestep_final( &
        endif
 
        !--- deallocate local column arrays:
-       if(allocated(o3mmr)   ) deallocate(o3mmr   )
-       if(allocated(varint)  ) deallocate(varint  )
+!      if(allocated(o3mmr)   ) deallocate(o3mmr   )
+!      if(allocated(varint)  ) deallocate(varint  )
        if(allocated(plev)    ) deallocate(plev    )
        if(allocated(tlev)    ) deallocate(tlev    )
        if(allocated(play)    ) deallocate(play    )
@@ -753,13 +785,13 @@ subroutine rrtmg_lw_mpas_timestep_final( &
        if(allocated(cfc12vmr)) deallocate(cfc12vmr)
        if(allocated(cfc22vmr)) deallocate(cfc22vmr)
        if(allocated(ccl4vmr) ) deallocate(ccl4vmr )
-       if(allocated(clwpth)  ) deallocate(clwpth  )
-       if(allocated(ciwpth)  ) deallocate(ciwpth  )
-       if(allocated(cswpth)  ) deallocate(cswpth  )
+!      if(allocated(clwpth)  ) deallocate(clwpth  )
+!      if(allocated(ciwpth)  ) deallocate(ciwpth  )
+!      if(allocated(cswpth)  ) deallocate(cswpth  )
        if(allocated(rel)     ) deallocate(rel     )
        if(allocated(rei)     ) deallocate(rei     )
        if(allocated(res)     ) deallocate(res     )
-       if(allocated(cldfrac) ) deallocate(cldfrac )
+!      if(allocated(cldfrac) ) deallocate(cldfrac )
        if(allocated(relqmcl) ) deallocate(relqmcl )
        if(allocated(reicmcl) ) deallocate(reicmcl )
        if(allocated(resnmcl) ) deallocate(resnmcl )
@@ -769,7 +801,7 @@ subroutine rrtmg_lw_mpas_timestep_final( &
        if(allocated(dflxc)   ) deallocate(dflxc   )
        if(allocated(hr)      ) deallocate(hr      )
        if(allocated(hrc)     ) deallocate(hrc     )
-       if(allocated(taucld)  ) deallocate(taucld  )
+!      if(allocated(taucld)  ) deallocate(taucld  )
        if(allocated(cldfmcl) ) deallocate(cldfmcl )         
        if(allocated(clwpmcl) ) deallocate(clwpmcl )
        if(allocated(ciwpmcl) ) deallocate(ciwpmcl )

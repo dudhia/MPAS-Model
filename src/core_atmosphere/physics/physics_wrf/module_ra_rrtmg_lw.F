@@ -1,20 +1,22 @@
 module module_ra_rrtmg_lw
 
- use mpas_atmphys_constants,only : cp,g=>gravity
- use ra_rrtmg_vinterp,only: vinterp_ozn
+use mpas_kind_types,only: kind_phys => RKIND
+use mpas_log
+! use mpas_atmphys_constants,only : cp,g=>gravity
+! use ra_rrtmg_vinterp,only: vinterp_ozn
 
- use parrrtm, only : nbndlw, ngptlw
- use rrtmg_lw_init, only: rrtmg_lw_ini
- use rrtmg_lw_rad, only: rrtmg_lw
- use mcica_subcol_gen_lw, only: mcica_subcol_lw
- use rrtmg_lw_mpas,only: rrtmg_lw_mpas_timestep_init, &
-                         rrtmg_lw_mpas_timestep_final
- use rrtmg_lw_rad,only : rrtmg_lw_run
+  use parrrtm, only : nbndlw, ngptlw
+! use rrtmg_lw_init, only: rrtmg_lw_ini
+! use rrtmg_lw_rad, only: rrtmg_lw
+! use mcica_subcol_gen_lw, only: mcica_subcol_lw
+  use rrtmg_lw_mpas,only: rrtmg_lw_mpas_timestep_init, &
+                          rrtmg_lw_mpas_timestep_final
+  use rrtmg_lw_rad,only : rrtmg_lw_run
 
 
-    ! For buffer layer adjustment.  Steven Cavallo, Dec 2010.
-    integer , save    :: nlayers    
-    real, PARAMETER :: deltap = 4.  ! Pressure interval for buffer layer in mb
+!   ! For buffer layer adjustment.  Steven Cavallo, Dec 2010.
+!   integer , save    :: nlayers    
+!   real, PARAMETER :: deltap = 4.  ! Pressure interval for buffer layer in mb
     
 contains
 
@@ -29,6 +31,7 @@ contains
                        lwupt,lwuptc,lwdnt,lwdntc,                 &
                        lwupb,lwupbc,lwdnb,lwdnbc,                 &
                        lwupflx, lwupflxc, lwdnflx, lwdnflxc,      &
+                       errmsg, errflg,                            &
                        ids,ide, jds,jde, kds,kde,                 & 
                        ims,ime, jms,jme, kms,kme,                 &
                        its,ite, jts,jte, kts,kte                  &
@@ -70,6 +73,12 @@ contains
      rre_cloud,rre_ice,rre_snow
   real,intent(out),dimension(ims:ime,kms:kme+2,jms:jme ),optional:: &
      lwupflx,lwupflxc,lwdnflx,lwdnflxc
+ character(len=*),intent(out):: &
+    errmsg       ! output error message (-).
+
+ integer,intent(out):: &
+    errflg       ! output error flag (-).
+
 
 !local variables only needed for conversion from ims->its,ime->ite,kms->kts,kme->kte,etc in call to
 !subroutine rrtmg_lw_timestep_init:
@@ -80,14 +89,14 @@ contains
  real(kind=kind_phys),dimension(its:ite,kts:kte+1):: &
     p8w_hv,t8w_hv
 
- real(kind=kind_phys),dimension(its:ite,kts:kte):: cldfra3d_hv,qc3d_hv,qr3d_hv,qi3d_hv,qs3d_hv,qg3d_hv
+ real(kind=kind_phys),dimension(its:ite,kts:kte):: cldfra3d_hv,qc3d_hv,qr3d_hv,qi3d_hv,qs3d_hv,qg3d_hv,o33d_hv
  real(kind=kind_phys),dimension(its:ite,1:noznlevels):: o3clim_hv
 
 !local variables only needed for call to rrtmg_lw_run (column arrays allocated in rrtmg_lw_init)
  integer:: ncol,nlay,icld,inflglw,iceflglw,liqflglw
  real(kind=kind_phys),dimension(:,:),allocatable:: play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr
  real(kind=kind_phys),dimension(:,:),allocatable:: cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr
- real(kind=kind_phys),dimension(:,:),allocatable:: relqmcl,reicmcl,resnmcl
+ real(kind=kind_phys),dimension(:,:),allocatable:: relqmcl,reicmcl,resnmcl,rei,rel,res
  real(kind=kind_phys),dimension(:,:,:),allocatable:: cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl
  real(kind=kind_phys),dimension(:,:),allocatable:: hr,hrc
 
@@ -145,35 +154,35 @@ contains
     enddo
 
     !--- optional arrays:
-    if(present(f_qc) .and. present(qc3d)) then
+    if(present(qc3d)) then
        do k = kts,kte
           do i = its,ite
              qc3d_hv(i,k) = qc3d(i,k,j)
           enddo
        enddo
     endif
-    if(present(f_qr) .and. present(qr3d)) then
+    if(present(qr3d)) then
        do k = kts,kte
           do i = its,ite
              qr3d_hv(i,k) = qr3d(i,k,j)
           enddo
        enddo
     endif
-    if(present(f_qi) .and. present(qi3d)) then
+    if(present(qi3d)) then
        do k = kts,kte
           do i = its,ite
              qi3d_hv(i,k) = qi3d(i,k,j)
           enddo
        enddo
     endif
-    if(present(f_qs) .and. present(qs3d)) then
+    if(present(qs3d)) then
        do k = kts,kte
           do i = its,ite
              qs3d_hv(i,k) = qs3d(i,k,j)
           enddo
        enddo
     endif
-    if(present(f_qg) .and. present(qg3d)) then
+    if(present(qg3d)) then
        do k = kts,kte
           do i = its,ite
              qg3d_hv(i,k) = qg3d(i,k,j)
@@ -194,6 +203,13 @@ contains
           enddo
        enddo
     endif
+    if(present(o33d)) then
+       do k = kts,kte
+          do i = its,ite
+             o33d_hv(i,k) = o33d(i,k,j)
+          enddo
+       enddo
+    endif
  enddo
 
        call rrtmg_lw_mpas_timestep_init( &
@@ -208,6 +224,7 @@ contains
                        n2ovmr,o2vmr,cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr, &
                        emis,inflglw,iceflglw,liqflglw,cldfmcl,taucmcl, &
                        ciwpmcl,clwpmcl,cswpmcl,reicmcl,relqmcl,resnmcl, &
+                       rei,rel,res,                            &
                        tauaer,uflx,dflx,hr,uflxc,dflxc,hrc, &
                        ids,ide, kds,kde,                          &
                        ims,ime, kms,kme,                          &
@@ -227,9 +244,15 @@ contains
                    errmsg, errflg )
 
        call rrtmg_lw_mpas_timestep_final( &
-                       pi2d_hv,icloud,cldfra2d_hv,                      &
+                       pi3d_hv,icloud,cldfra3d_hv,                      &
                        dflx, dflxc, uflx, uflxc,                  &
-                       hr, rel, rei, res,                         &
+                       hr, hrc, rel, rei, res,                         &
+                       play, plev, tlay, &
+                       tlev, h2ovmr,o3vmr,co2vmr,ch4vmr, &
+                       n2ovmr  , o2vmr   , cfc11vmr , cfc12vmr , cfc22vmr , ccl4vmr , &
+                       cldfmcl, taucmcl , &
+                       ciwpmcl , clwpmcl , cswpmcl  , reicmcl  , relqmcl  , resnmcl , &
+                       tauaer  , &
                        glw_hv,olr_hv,lwcf_hv,rthratenlw_hv,            &
                        lwupt_hv,lwuptc_hv,lwdnt_hv,lwdntc_hv,                 &
                        lwupb_hv,lwupbc_hv,lwdnb_hv,lwdnbc_hv,                 &
@@ -242,7 +265,7 @@ contains
 
  do j = jts,jte
     do i = its,ite
-       gsw(i,j) = gsw_hv(i)
+       glw(i,j) = glw_hv(i)
        olr(i,j) = olr_hv(i)
        do k = kts,kte
           rthratenlw(i,k,j) = rthratenlw_hv(i,k)

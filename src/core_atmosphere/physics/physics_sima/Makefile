@@ -21,7 +21,8 @@ physics_sima: $(OBJS)
 
 # DEPENDENCIES:
 ra_rrtmg_mcica.o: \
-	ra_rrtmg_sw.o
+	ra_rrtmg_sw.o \
+	ra_rrtmg_lw.o
 
 ra_rrtmg_sw_mpas.o: \
 	ra_rrtmg_mcica.o \

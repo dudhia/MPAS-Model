@@ -240,7 +240,8 @@
        do thread=1,nThreads
           call driver_radiation_lw(xtime_s,block%configs,mesh,state,time_lev,diag_physics, &
                                    atm_input,sfc_input,tend_physics, &
-                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+                                   cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                   errmsg,errflg)
        end do
 !$OMP END PARALLEL DO
     endif

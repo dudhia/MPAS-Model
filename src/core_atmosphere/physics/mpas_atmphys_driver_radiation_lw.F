@@ -810,7 +810,7 @@
 
 !=================================================================================================================
  subroutine driver_radiation_lw(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input, &
-                                sfc_input,tend_physics,its,ite)
+                                sfc_input,tend_physics,its,ite,errmsg,errflg)
 !=================================================================================================================
 
 !input arguments:
@@ -827,6 +827,10 @@
  type(mpas_pool_type),intent(inout):: atm_input
  type(mpas_pool_type),intent(inout):: sfc_input
  type(mpas_pool_type),intent(inout):: tend_physics
+
+!output arguments:
+ character(len=*),intent(out):: errmsg
+ integer,intent(out)         :: errflg
 
 !local pointers:
  logical,pointer:: config_o3climatology
@@ -870,6 +874,7 @@
             rre_snow   = rresnow_p     , lwupt     = lwupt_p     , lwuptc   = lwuptc_p , &
             lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p    , lwupb    = lwupb_p  , &
             lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p     , lwdnbc   = lwdnbc_p , &
+            errmsg     = errmsg        , errflg    = errflg      ,                       &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
