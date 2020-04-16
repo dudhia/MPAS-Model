@@ -6293,27 +6293,33 @@ call mpas_log_write('Done with soil consistency check')
      character(len=*), intent(in) :: variable
 
      atm_get_sounding = -999.
+! SAS case sounding
 
      if(variable == 'u') then 
-        atm_get_sounding = 15.0
+        atm_get_sounding = 0.0
+
      else if (variable == 'v') then
         atm_get_sounding = 0.
-     else if (variable == 'qv') then
-
-        atm_get_sounding = 0. ! dry sounding
-        ! atm_get_sounding = 0.010
-        ! if(height .gt. 500.) atm_get_sounding = 0.004
 
      else if (variable == 'theta') then
 
-        if(height .le. 500.) then
-          atm_get_sounding = 300.
-        else if(height .le. 600.) then
-          atm_get_sounding = 300. + (height-500.)*3./100.
+        if(height .le. 352.5) then
+          atm_get_sounding = 296.6
+        else if(height .le. 442.5) then
+          atm_get_sounding = 296.6 + (height-352.5)*1.5/90.
         else
-          atm_get_sounding = 303. + (height-600.)*3./1000.
+          atm_get_sounding = 298.1 + (height-442.5)*0.003
         end if
-        ! atm_get_sounding = atm_get_sounding - 10.0  ! for water case
+
+     else if (variable == 'qv') then
+
+        if(height .le. 352.5) then
+          atm_get_sounding = 11.8/1000.
+        else if(height .le. 442.5) then
+          atm_get_sounding = 11.8/1000. - (height-352.5)*4.0/90./10000.
+        else
+          atm_get_sounding = max(7.8/1000. - (height-442.5)*0.004/1000.,0.0)
+        end if
 
       end if 
 
