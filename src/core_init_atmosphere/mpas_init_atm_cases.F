@@ -5790,7 +5790,7 @@ call mpas_log_write('Done with soil consistency check')
       real (kind=RKIND) ::  r, xnutr
       real (kind=RKIND) ::  ztemp, zd, zt, dz, str
 
-      real (kind=RKIND), dimension(nVertLevels ) :: qvb
+      real (kind=RKIND), dimension(nVertLevels ) :: qvb, qvp, zg
       real (kind=RKIND), dimension(nVertLevels ) :: t_init_1d
 
       real (kind=RKIND) :: d1, d2, d3, cof1, cof2
@@ -6122,6 +6122,8 @@ call mpas_log_write('Done with soil consistency check')
 !            qvb(k) = scalars(index_qv,k,1)
 !           QVB = 0 PRODUCES DRY REFERENCE STATE
             qvb(k) = 0.
+            qvp(k) = scalars(index_qv,k,1)*1000.
+            zg(k) = .5*(zgrid(k,1)+zgrid(k+1,1))
 !*********************************************************************
       end do
 
@@ -6139,9 +6141,9 @@ call mpas_log_write('Done with soil consistency check')
       end do !end of iteration loop
 
       call mpas_log_write(' base state sounding ')
-      call mpas_log_write(' k,     pb,     rb,     tb,     rtb,     t,     rr,      p,    qvb')
+      call mpas_log_write(' k,     zg,     rb,     tb,     rtb,     t,     rr,      p,    qvp')
       do k=1,nVertLevels
-         call mpas_log_write('$i $r $r $r $r $r $r $r $r', intArgs=(/k/), realArgs=(/pb(k,1),rb(k,1),tb(k,1),rtb(k,1),t(k,1),rr(k,1),p(k,1),qvb(k)/))
+         call mpas_log_write('$i $r $r $r $r $r $r $r $r', intArgs=(/k/), realArgs=(/zg(k),rb(k,1),tb(k,1),rtb(k,1),t(k,1),rr(k,1),p(k,1),qvp(k)/))
       end do
 
 !
@@ -6316,7 +6318,7 @@ call mpas_log_write('Done with soil consistency check')
         if(height .le. 352.5) then
           atm_get_sounding = 11.8/1000.
         else if(height .le. 442.5) then
-          atm_get_sounding = 11.8/1000. - (height-352.5)*4.0/90./10000.
+          atm_get_sounding = 11.8/1000. - (height-352.5)*4.0/90./1000.
         else
           atm_get_sounding = max(7.8/1000. - (height-442.5)*0.004/1000.,0.0)
         end if
