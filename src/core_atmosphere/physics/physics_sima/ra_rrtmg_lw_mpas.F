@@ -213,8 +213,9 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ call mpas_log_write('--- enter subroutine rrtmg_lw_mpas_timestep_init:')
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
- ncol = 1
+ ncol = ite-its+1
 
 !--- initialize option for the calculation of the cloud optical properties:
  icld     = 2 ! with clouds using maximum/random cloud overlap in subroutine mcica_subcol_lw. 
@@ -229,13 +230,53 @@
 
        !--- set surface emissivity in each RRTMG longwave band:
        do nb = 1, nbndlw
-          emis(ncol,nb) = emiss(i)
+          emis(i,nb) = emiss(i)
        enddo
 
+       nlayers  = kte + 10 ! temporary value for allocation i-dependent
 
+       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
+       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
+       if(.not.allocated(plev)    ) allocate(plev(its:ite,kts:nlayers+1)  )
+       if(.not.allocated(tlev)    ) allocate(tlev(its:ite,kts:nlayers+1)  )
+       if(.not.allocated(play)    ) allocate(play(its:ite,kts:nlayers)    )
+       if(.not.allocated(tlay)    ) allocate(tlay(its:ite,kts:nlayers)    )
+       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(its:ite,kts:nlayers)  )
+       if(.not.allocated(o3vmr)   ) allocate(o3vmr(its:ite,kts:nlayers)   )
+       if(.not.allocated(co2vmr)  ) allocate(co2vmr(its:ite,kts:nlayers)  )
+       if(.not.allocated(o2vmr)   ) allocate(o2vmr(its:ite,kts:nlayers)   )
+       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(its:ite,kts:nlayers)  )
+       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(its:ite,kts:nlayers)  )
+       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(its:ite,kts:nlayers))
+       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(its:ite,kts:nlayers))
+       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(its:ite,kts:nlayers))
+       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(its:ite,kts:nlayers) )
+       if(.not.allocated(clwpth)  ) allocate(clwpth(its:ite,kts:nlayers)  )
+       if(.not.allocated(ciwpth)  ) allocate(ciwpth(its:ite,kts:nlayers)  )
+       if(.not.allocated(cswpth)  ) allocate(cswpth(its:ite,kts:nlayers)  )
+       if(.not.allocated(rel)     ) allocate(rel(its:ite,kts:nlayers)     )
+       if(.not.allocated(rei)     ) allocate(rei(its:ite,kts:nlayers)     )
+       if(.not.allocated(res)     ) allocate(res(its:ite,kts:nlayers)     )
+       if(.not.allocated(cldfrac) ) allocate(cldfrac(its:ite,kts:nlayers) )
+       if(.not.allocated(relqmcl) ) allocate(relqmcl(its:ite,kts:nlayers) )
+       if(.not.allocated(reicmcl) ) allocate(reicmcl(its:ite,kts:nlayers) )
+       if(.not.allocated(resnmcl) ) allocate(resnmcl(its:ite,kts:nlayers) )
+       if(.not.allocated(uflx)    ) allocate(uflx(its:ite,kts:nlayers+1)  )
+       if(.not.allocated(dflx)    ) allocate(dflx(its:ite,kts:nlayers+1)  )
+       if(.not.allocated(uflxc)   ) allocate(uflxc(its:ite,kts:nlayers+1) )
+       if(.not.allocated(dflxc)   ) allocate(dflxc(its:ite,kts:nlayers+1) )
+       if(.not.allocated(hr)      ) allocate(hr(its:ite,kts:nlayers)      )
+       if(.not.allocated(hrc)     ) allocate(hrc(its:ite,kts:nlayers)     )
+       if(.not.allocated(taucld)  ) allocate(taucld(nbndlw,its:ite,kts:nlayers) )
+       if(.not.allocated(cldfmcl) ) allocate(cldfmcl(ngptlw,its:ite,kts:nlayers))         
+       if(.not.allocated(clwpmcl) ) allocate(clwpmcl(ngptlw,its:ite,kts:nlayers))
+       if(.not.allocated(ciwpmcl) ) allocate(ciwpmcl(ngptlw,its:ite,kts:nlayers))
+       if(.not.allocated(cswpmcl) ) allocate(cswpmcl(ngptlw,its:ite,kts:nlayers))
+       if(.not.allocated(taucmcl) ) allocate(taucmcl(ngptlw,its:ite,kts:nlayers))
+       if(.not.allocated(tauaer)  ) allocate(tauaer(its:ite,kts:nlayers,nbndlw) )
 
-       !--- INITIALIZE COLUMN SOUNDING (the call to the long wave radiation code is done one column at a time
-       !    which is why we set ncol = 1 above):
+       !--- INITIALIZE COLUMN SOUNDING 
+
        do k = kts, kte+1
           pw1d(k) = p8w(i,k) / 100.
           tw1d(k) = t8w(i,k)
@@ -256,7 +297,7 @@
           if(present(o32d)) o31d(k) = o32d(i,k)
        enddo
 
-       !--- initialize the local arrays containing the different cloud water and ice condenstates:
+       !--- initialize the local arrays cont
        if(icloud .gt. 0) then
           do k = kts,kte
              if(present(qc2d)) qc1d(k) = amax1(qc2d(i,k),0.)
@@ -273,133 +314,92 @@
        !    a height coordinate system. Therefore, we define nlayers for each individual column:
        nlayers = kte + max(nint(pw1d(kte+1)/deltap), 1)
        mpas_nlay(i) = nlayers-kte
-!      write(0,101) i,kme,kte,nlayers,mpas_nlay(i),pw1d(kte+1),pw1d(kte+1)-mpas_nlay(i)*deltap
+!      write(0,*) i,kme,kte,nlayers,mpas_nlay(i),pw1d(kte+1),deltap
 !      101 format(6i9,3(1x,f9.4))
-       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
-       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
-       if(.not.allocated(plev)    ) allocate(plev(1,kts:nlayers+1)  )
-       if(.not.allocated(tlev)    ) allocate(tlev(1,kts:nlayers+1)  )
-       if(.not.allocated(play)    ) allocate(play(1,kts:nlayers)    )
-       if(.not.allocated(tlay)    ) allocate(tlay(1,kts:nlayers)    )
-       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(o3vmr)   ) allocate(o3vmr(1,kts:nlayers)   )
-       if(.not.allocated(co2vmr)  ) allocate(co2vmr(1,kts:nlayers)  )
-       if(.not.allocated(o2vmr)   ) allocate(o2vmr(1,kts:nlayers)   )
-       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(1,kts:nlayers)  )
-       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(1,kts:nlayers))
-       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(1,kts:nlayers))
-       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(1,kts:nlayers))
-       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(1,kts:nlayers) )
-       if(.not.allocated(clwpth)  ) allocate(clwpth(1,kts:nlayers)  )
-       if(.not.allocated(ciwpth)  ) allocate(ciwpth(1,kts:nlayers)  )
-       if(.not.allocated(cswpth)  ) allocate(cswpth(1,kts:nlayers)  )
-       if(.not.allocated(rel)     ) allocate(rel(1,kts:nlayers)     )
-       if(.not.allocated(rei)     ) allocate(rei(1,kts:nlayers)     )
-       if(.not.allocated(res)     ) allocate(res(1,kts:nlayers)     )
-       if(.not.allocated(cldfrac) ) allocate(cldfrac(1,kts:nlayers) )
-       if(.not.allocated(relqmcl) ) allocate(relqmcl(1,kts:nlayers) )
-       if(.not.allocated(reicmcl) ) allocate(reicmcl(1,kts:nlayers) )
-       if(.not.allocated(resnmcl) ) allocate(resnmcl(1,kts:nlayers) )
-       if(.not.allocated(uflx)    ) allocate(uflx(1,kts:nlayers+1)  )
-       if(.not.allocated(dflx)    ) allocate(dflx(1,kts:nlayers+1)  )
-       if(.not.allocated(uflxc)   ) allocate(uflxc(1,kts:nlayers+1) )
-       if(.not.allocated(dflxc)   ) allocate(dflxc(1,kts:nlayers+1) )
-       if(.not.allocated(hr)      ) allocate(hr(1,kts:nlayers)      )
-       if(.not.allocated(hrc)     ) allocate(hrc(1,kts:nlayers)     )
-       if(.not.allocated(taucld)  ) allocate(taucld(nbndlw,1,kts:nlayers) )
-       if(.not.allocated(cldfmcl) ) allocate(cldfmcl(ngptlw,1,kts:nlayers))         
-       if(.not.allocated(clwpmcl) ) allocate(clwpmcl(ngptlw,1,kts:nlayers))
-       if(.not.allocated(ciwpmcl) ) allocate(ciwpmcl(ngptlw,1,kts:nlayers))
-       if(.not.allocated(cswpmcl) ) allocate(cswpmcl(ngptlw,1,kts:nlayers))
-       if(.not.allocated(taucmcl) ) allocate(taucmcl(ngptlw,1,kts:nlayers))
-       if(.not.allocated(tauaer)  ) allocate(tauaer(1,kts:nlayers,nbndlw) )
 
        nlay = nlayers ! keep these indices the same.
 
        !--- initialize local arrays called in the calculation of the cloud optical properties and radiative
        !    fluxes:
-       do n = 1, ncol
-          do k = kts, kte
-             reliq(ncol,k)  = 10.
-             reice(ncol,k)  = 10.
-             resnow(ncol,k) = 10.
-             cliqwp(ncol,k) = 0.
-             cicewp(ncol,k) = 0.
-             csnowp(ncol,k) = 0.
-          enddo
-
-          do k = 1, nlayers
-             clwpth(n,k)  = 0.
-             ciwpth(n,k)  = 0.
-             cswpth(n,k)  = 0.
-             rel(n,k)     = 0.
-             rei(n,k)     = 0.
-             res(n,k)     = 0.
-             cldfrac(n,k) = 0.
-             relqmcl(n,k) = 0.
-             reicmcl(n,k) = 0.
-             resnmcl(n,k) = 0.
-             uflx(n,k)    = 0.
-             uflxc(n,k)   = 0.
-             dflx(n,k)    = 0.
-             dflxc(n,k)   = 0.
-             hr(n,k)      = 0.
-             hrc(n,k)     = 0.
-             taucld(1:nbndlw,n,k)  = 0.
-             tauaer(n,k,1:nbndlw)  = 0.
-             cldfmcl(1:ngptlw,n,k) = 0.
-             clwpmcl(1:ngptlw,n,k) = 0.
-             ciwpmcl(1:ngptlw,n,k) = 0.
-             cswpmcl(1:ngptlw,n,k) = 0.
-             taucmcl(1:ngptlw,n,k) = 0.
-          enddo
-          uflx(n,nlayers+1)  = 0.
-          uflxc(n,nlayers+1) = 0.
-          dflx(n,nlayers+1)  = 0.
-          dflxc(n,nlayers+1) = 0.
+       do k = kts, kte
+          reliq(i,k)  = 10.
+          reice(i,k)  = 10.
+          resnow(i,k) = 10.
+          cliqwp(i,k) = 0.
+          cicewp(i,k) = 0.
+          csnowp(i,k) = 0.
        enddo
 
-       !--- fill local arrays with input sounding. convert water vapor mass mixing ratio to volume mixing ratio:
-       plev(ncol,1) = pw1d(1)
-       tlev(ncol,1) = tw1d(1)
-       tsfc(ncol)   = tsk(i)
+       do k = 1, nlayers
+          clwpth(i,k)  = 0.
+          ciwpth(i,k)  = 0.
+          cswpth(i,k)  = 0.
+          rel(i,k)     = 0.
+          rei(i,k)     = 0.
+          res(i,k)     = 0.
+          cldfrac(i,k) = 0.
+          relqmcl(i,k) = 0.
+          reicmcl(i,k) = 0.
+          resnmcl(i,k) = 0.
+          uflx(i,k)    = 0.
+          uflxc(i,k)   = 0.
+          dflx(i,k)    = 0.
+          dflxc(i,k)   = 0.
+          hr(i,k)      = 0.
+          hrc(i,k)     = 0.
+          taucld(1:nbndlw,i,k)  = 0.
+          tauaer(i,k,1:nbndlw)  = 0.
+          cldfmcl(1:ngptlw,i,k) = 0.
+          clwpmcl(1:ngptlw,i,k) = 0.
+          ciwpmcl(1:ngptlw,i,k) = 0.
+          cswpmcl(1:ngptlw,i,k) = 0.
+          taucmcl(1:ngptlw,i,k) = 0.
+       enddo
+       uflx(i,nlayers+1)  = 0.
+       uflxc(i,nlayers+1) = 0.
+       dflx(i,nlayers+1)  = 0.
+       dflxc(i,nlayers+1) = 0.
+
+    !--- fill local arrays with input sounding. convert water vapor mass mixing ratio to volume mixing ratio:
+    plev(i,1) = pw1d(1)
+       tlev(i,1) = tw1d(1)
+       tsfc(i)   = tsk(i)
        do k = kts, kte
-          plev(ncol,k+1)   = pw1d(k+1)
-          tlev(ncol,k+1)   = tw1d(k+1)
-          play(ncol,k)     = p1d(k)
-          pdel(ncol,k)     = plev(ncol,k) - plev(ncol,k+1)
-          tlay(ncol,k)     = t1d(k)
-          h2ovmr(ncol,k)   = qv1d(k) * amdw
-          co2vmr(ncol,k)   = co2
-          o2vmr(ncol,k)    = o2
-          ch4vmr(ncol,k)   = ch4
-          n2ovmr(ncol,k)   = n2o
-          cfc11vmr(ncol,k) = cfc11
-          cfc12vmr(ncol,k) = cfc12
-          cfc22vmr(ncol,k) = cfc22
-          ccl4vmr(ncol,k)  = ccl4
+          plev(i,k+1)   = pw1d(k+1)
+          tlev(i,k+1)   = tw1d(k+1)
+          play(i,k)     = p1d(k)
+          pdel(i,k)     = plev(i,k) - plev(i,k+1)
+          tlay(i,k)     = t1d(k)
+          h2ovmr(i,k)   = qv1d(k) * amdw
+          co2vmr(i,k)   = co2
+          o2vmr(i,k)    = o2
+          ch4vmr(i,k)   = ch4
+          n2ovmr(i,k)   = n2o
+          cfc11vmr(i,k) = cfc11
+          cfc12vmr(i,k) = cfc12
+          cfc22vmr(i,k) = cfc22
+          ccl4vmr(i,k)  = ccl4
        enddo
 
        !--- the sourcecode below follows Steven Cavallo's method to "fill" the atmospheric layers between the
        !    top of the model and the top of the atmosphere. check if the pressure at the top of the atmosphere
        !    is negative. if negative, set it to zero prior to the calculation of temperatures (tlev and tlay):
        do k=kte+1,nlayers,1
-          plev(ncol,k+1) = max(plev(ncol,k) - deltap, 0.00)
-          play(ncol,k) = 0.5*(plev(ncol,k) + plev(ncol,k+1))
+          plev(i,k+1) = max(plev(i,k) - deltap, 0.00)
+          play(i,k) = 0.5*(plev(i,k) + plev(i,k+1))
        enddo          
 
        !--- add zero as top level. this gets the temperature max at the stratopause, reducing downward flux
        !    errors in the top levels.  If zero happened to be the top level already, this will add another
        !    level with zero, but will not affect the radiative transfer calculation.
-       plev(ncol,nlayers+1) = 0.00
-       play(ncol,nlayers) =  0.5*(plev(ncol,nlayers) + plev(ncol,nlayers+1))
+       plev(i,nlayers+1) = 0.00
+       play(i,nlayers) =  0.5*(plev(i,nlayers) + plev(i,nlayers+1))
 
        !--- interpolate the table temperatures to column pressure levels:
        do k = 1, nlayers+1, 1
-          if(pprof(nproflevs) .lt. plev(ncol,k)) then
+          if(pprof(nproflevs) .lt. plev(i,k)) then
              do kk = 2, nproflevs, 1       
-                if(pprof(kk) .lt. plev(ncol,k)) then           
+                if(pprof(kk) .lt. plev(i,k)) then           
                    klev = kk - 1
                    exit
                 endif
@@ -411,7 +411,7 @@
           if(klev .ne. nproflevs) then
              vark  = tprof(klev) 
              vark1 = tprof(klev+1)
-             wght  = (plev(ncol,k)-pprof(klev) )/( pprof(klev+1)-pprof(klev))
+             wght  = (plev(i,k)-pprof(klev) )/( pprof(klev+1)-pprof(klev))
           else
              vark  = tprof(klev) 
              vark1 = tprof(klev)
@@ -422,59 +422,66 @@
        
        !--- match the interpolated table temperature profile:
        do k = kte+1, nlayers+1, 1
-          tlev(ncol,k) = varint(k) + (tlev(ncol,kte) - varint(kte))
+          tlev(i,k) = varint(k) + (tlev(i,kte) - varint(kte))
           !if(k .le. nlay) then
-          tlay(ncol,k-1) = 0.5*(tlev(ncol,k) + tlev(ncol,k-1))
+          tlay(i,k-1) = 0.5*(tlev(i,k) + tlev(i,k-1))
           !endif
        enddo
 
        !--- fill water vapor and chemical species volume mixing ratios, except ozone:
        do k = kte+1, nlayers, 1
-          h2ovmr(ncol,k)   = h2ovmr(ncol,kte) 
-          co2vmr(ncol,k)   = co2vmr(ncol,kte) 
-          o2vmr(ncol,k)    = o2vmr(ncol,kte) 
-          ch4vmr(ncol,k)   = ch4vmr(ncol,kte) 
-          n2ovmr(ncol,k)   = n2ovmr(ncol,kte) 
-          cfc11vmr(ncol,k) = cfc11vmr(ncol,kte) 
-          cfc12vmr(ncol,k) = cfc12vmr(ncol,kte) 
-          cfc22vmr(ncol,k) = cfc22vmr(ncol,kte) 
-          ccl4vmr(ncol,k)  = ccl4vmr(ncol,kte) 
+          h2ovmr(i,k)   = h2ovmr(i,kte) 
+          co2vmr(i,k)   = co2vmr(i,kte) 
+          o2vmr(i,k)    = o2vmr(i,kte) 
+          ch4vmr(i,k)   = ch4vmr(i,kte) 
+          n2ovmr(i,k)   = n2ovmr(i,kte) 
+          cfc11vmr(i,k) = cfc11vmr(i,kte) 
+          cfc12vmr(i,k) = cfc12vmr(i,kte) 
+          cfc22vmr(i,k) = cfc22vmr(i,kte) 
+          ccl4vmr(i,k)  = ccl4vmr(i,kte) 
        enddo	 
 
        !--- initialize the ozone voume mixing ratio:
-       call inirad(o3mmr,plev,kts,nlayers-1)
+       pcols = 1
+       call inirad(o3mmr,plev(i,:),kts,nlayers-1)
        if(o3input .eq. 2) then
           do k = 1, noznlevels
              o3clim1d(k) = o3clim(i,k)
           enddo
-          call vinterp_ozn(1,ncol,ncol,nlayers,play,pin,noznlevels,o3clim1d,o3mmr)
+          call vinterp_ozn(1,pcols,pcols,nlayers,play(i,:),pin,noznlevels,o3clim1d,o3mmr)
           do k = kts,nlayers
-             o3vmr(ncol,k) = o3mmr(k)
+             o3vmr(i,k) = o3mmr(k)
           enddo
        else
           do k = kts,nlayers
-             o3vmr(ncol,k) = o3mmr(k)*amdo
+             o3vmr(i,k) = o3mmr(k)*amdo
           enddo
        endif
 
+       !--- initialization of aerosol optical depths:
+       do nb = 1, nbndlw
+          do k = kts, nlayers
+             tauaer(i,k,nb) = 0.
+          enddo
+       enddo
 
 
        !--- CALCULATE CLOUD OPTICAL PROPERTIES:
        if(inflglw .gt. 0) then 
 
           do k = kts, kte
-             cldfrac(ncol,k) = cldfra1d(k)
+             cldfrac(i,k) = cldfra1d(k)
           enddo
 
           !--- zero out cloud optical properties here (not used when passing physical properties to rrtmg_lw as
           !    taucld is calculated in radiation:
           do k = kts, kte
              do nb = 1, nbndlw
-                taucld(nb,ncol,k) = 0.0
+                taucld(nb,i,k) = 0.0
              enddo
           enddo
 
-          pcols = ncol
+!         pcols = 1
           pver  = kte - kts + 1
           gravmks = g
 
@@ -483,13 +490,13 @@
              !    microphysics parameterization:
              inflglw = 3
              do k = kts, kte
-                reliq(ncol,k) = max(2.5,re_cloud(i,k)*1.e6)
-                if(reliq(ncol,k).le.2.5 .and. cldfrac(ncol,k).gt.0. .and. &
+                reliq(i,k) = max(2.5,re_cloud(i,k)*1.e6)
+                if(reliq(i,k).le.2.5 .and. cldfrac(i,k).gt.0. .and. &
                    (xland(i)-1.5).gt.0.) then        !--- ocean.
-                   reliq(ncol,k) = 10.5
-                elseif(reliq(ncol,k).le.2.5 .and. cldfrac(ncol,k).gt.0. .and. &
+                   reliq(i,k) = 10.5
+                elseif(reliq(i,k).le.2.5 .and. cldfrac(i,k).gt.0. .and. &
                    (xland(i)-1.5).lt.0.) then        !--- land.
-                   reliq(ncol,k) = 7.5
+                   reliq(i,k) = 7.5
                 endif
              enddo
 
@@ -498,12 +505,12 @@
              !---  calculate the effective radius for cloud water in layers below the model top. we added the
              !     dimensions pcols, pver so that the calls to subroutines relcalc and reicalc remain the same
              !     as in WRF although the two dimensions are duplicate and not needed inside the subroutines:
-             landfrac(ncol) = 2.-xland(i)
-             landm(ncol)    = landfrac(ncol)
-             snowh(ncol)    = 0.001*snow(i)
-             icefrac(ncol)  = xice(i)
+             landfrac(pcols) = 2.-xland(i)
+             landm(pcols)    = landfrac(pcols)
+             snowh(pcols)    = 0.001*snow(i)
+             icefrac(pcols)  = xice(i)
 
-             call relcalc(ncol,pcols,pver,tlay,landfrac,landm,icefrac,reliq,snowh)
+             call relcalc(pcols,pcols,pver,tlay(i,:),landfrac,landm,icefrac,reliq(i,:),snowh)
           endif
 
           if(has_reqi .ne. 0) then
@@ -512,13 +519,13 @@
              inflglw  = 4
              iceflglw = 4
              do k = kts, kte
-                reice(ncol,k) = max(5.,re_ice(i,k)*1.e6)
-                if(reice(ncol,k).le.5. .and. cldfrac(ncol,k).gt.0.) then
-                   idx_rei = int(t2d(i,k)-179.)
+                reice(i,k) = max(5.,re_ice(i,k)*1.e6)
+                if(reice(i,k).le.5. .and. cldfrac(i,k).gt.0.) then
+                   idx_rei = int(tlay(i,k)-179.)
                    idx_rei = min(max(idx_rei,1),75)
-                   corr = t2d(i,k) - int(t2d(i,k))
-                   reice(ncol,k) = retab(idx_rei)*(1.-corr) + retab(idx_rei+1)*corr
-                   reice(ncol,k) = max(reice(ncol,k),5.0)
+                   corr = tlay(i,k) - int(tlay(i,k))
+                   reice(i,k) = retab(idx_rei)*(1.-corr) + retab(idx_rei+1)*corr
+                   reice(i,k) = max(reice(i,k),5.0)
                 endif
              enddo
 
@@ -528,12 +535,12 @@
              !    Kristjansson and Mitchell. limit upper bound of reice for Fu ice parameterization and
              !    convert effective radius to generalized effective size (*1.0315; Fu, 1996):
 
-             call reicalc(ncol,pcols,pver,tlay,reice)
+             call reicalc(pcols,pcols,pver,tlay,reice(i,:))
 
              if(iceflglw .eq. 3) then
                 do k = kts, kte
-                   reice(ncol,k) = reice(ncol,k) * 1.0315
-                   reice(ncol,k) = min(140.0,reice(ncol,k))
+                   reice(i,k) = reice(i,k) * 1.0315
+                   reice(i,k) = min(140.0,reice(i,k))
                 enddo
              endif
           endif
@@ -544,30 +551,30 @@
              inflglw  = 5
              iceflglw = 5
              do k = kts, kte
-                resnow(ncol,k) = max(10.,re_snow(i,k)*1.e6)
+                resnow(i,k) = max(10.,re_snow(i,k)*1.e6)
              enddo
           else
              do k = kts, kte
-                resnow(ncol,k) = 10.
+                resnow(i,k) = 10.
              enddo
           endif
 
           !--- calculate the cloud liquid water path in units of g/m2 below the model top:
           do k = kts, kte
-             gliqwp = qc1d(k) * pdel(ncol,k)*100.0 / gravmks * 1000.0              !grid box liquid water path.
-             cliqwp(ncol,k) = gliqwp / max(0.01,cldfrac(ncol,k))                   !in-cloud liquid water path.
+             gliqwp = qc1d(k) * pdel(i,k)*100.0 / gravmks * 1000.0              !grid box liquid water path.
+             cliqwp(i,k) = gliqwp / max(0.01,cldfrac(i,k))                   !in-cloud liquid water path.
           enddo
 
           !--- calculate the cloud ice path in units of g/m2 below the model top:
           if(iceflglw .eq. 3)then
              do k = kts, kte
-                gicewp = (qi1d(k)+qs1d(k)) * pdel(ncol,k)*100.0 / gravmks * 1000.0 !grid box ice water path.
-                cicewp(ncol,k) = gicewp / max(0.01,cldfrac(ncol,k))                !in-cloud ice water path.
+                gicewp = (qi1d(k)+qs1d(k)) * pdel(i,k)*100.0 / gravmks * 1000.0 !grid box ice water path.
+                cicewp(i,k) = gicewp / max(0.01,cldfrac(i,k))                !in-cloud ice water path.
              enddo
           elseif(iceflglw .ge. 4) then
              do k = kts, kte
-                gicewp = qi1d(k) * pdel(ncol,k)*100.0 / gravmks * 1000.0           !grid box ice water path.
-                cicewp(ncol,k) = gicewp / max(0.01,cldfrac(ncol,k))                !in-cloud ice water path.
+                gicewp = qi1d(k) * pdel(i,k)*100.0 / gravmks * 1000.0           !grid box ice water path.
+                cicewp(i,k) = gicewp / max(0.01,cldfrac(i,k))                !in-cloud ice water path.
              enddo
           endif
 
@@ -575,39 +582,41 @@
           if(iceflglw.eq.5)then
               do k = kts, kte
                  snow_mass_factor = 1.0
-                 if(resnow(ncol,k) .gt. 130.)then
-                    snow_mass_factor = (130.0/resnow(ncol,k))*(130.0/resnow(ncol,k))
-                    resnow(ncol,k)   = 130.0
+                 if(resnow(i,k) .gt. 130.)then
+                    snow_mass_factor = (130.0/resnow(i,k))*(130.0/resnow(i,k))
+                    resnow(i,k)   = 130.0
                  endif
-                 gsnowp = qs1d(k) * pdel(ncol,k)*100.0 / gravmks * 1000.0           ! grid box snow path.
-                 csnowp(ncol,k) = snow_mass_factor * gsnowp / max(0.01,cldfrac(ncol,k))
+                 gsnowp = qs1d(k) * pdel(i,k)*100.0 / gravmks * 1000.0           ! grid box snow path.
+                 csnowp(i,k) = snow_mass_factor * gsnowp / max(0.01,cldfrac(i,k))
               enddo
            endif
 
           !--- set the cloud physical property between the model top and the top of the atmosphere. do not allow
           !    clouds between the model top and the top of the atmosphere: 
+          ! In sw code these 6 local variables are not used and this copy is not needed
           do k = kts, kte
-             clwpth(ncol,k) = cliqwp(ncol,k)
-             ciwpth(ncol,k) = cicewp(ncol,k)
-             cswpth(ncol,k) = csnowp(ncol,k)
-             rel(ncol,k) = reliq(ncol,k)
-             rei(ncol,k) = reice(ncol,k)
-             res(ncol,k) = resnow(ncol,k)
+             clwpth(i,k) = cliqwp(i,k)
+             ciwpth(i,k) = cicewp(i,k)
+             cswpth(i,k) = csnowp(i,k)
+             rel(i,k) = reliq(i,k)
+             rei(i,k) = reice(i,k)
+             res(i,k) = resnow(i,k)
           enddo
           do k = kte+1, nlayers
-             clwpth(ncol,k)  = 0.
-             ciwpth(ncol,k)  = 0.
-             cswpth(ncol,k)  = 0.
-             rel(ncol,k)     = 10.
-             rei(ncol,k)     = 10.
-             res(ncol,k)     = 10.
-             cldfrac(ncol,k) = 0.
+             clwpth(i,k)  = 0.
+             ciwpth(i,k)  = 0.
+             cswpth(i,k)  = 0.
+             rel(i,k)     = 10.
+             rei(i,k)     = 10.
+             res(i,k)     = 10.
+             cldfrac(i,k) = 0.
              do nb = 1, nbndlw
-                taucld(nb,ncol,k) = 0.
+                taucld(nb,i,k) = 0.
              enddo
           enddo	 
 
        endif
+    end do i_loop !end longitude loop.
 
        !--- sub-column generator for McICA:
        iplon = 1
@@ -620,13 +629,6 @@
                    taucld  , cldfmcl , ciwpmcl , clwpmcl , cswpmcl     , reicmcl , relqmcl , & 
                    resnmcl , taucmcl)
 
-       !--- initialization of aerosol optical depths:
-       do nb = 1, nbndlw
-          do k = kts, nlayers
-             tauaer(ncol,k,nb) = 0.
-          enddo
-       enddo
-    end do i_loop !end longitude loop.
 
        if(allocated(o3mmr)   ) deallocate(o3mmr   )
        if(allocated(varint)  ) deallocate(varint  )
@@ -635,6 +637,7 @@
        if(allocated(cswpth)  ) deallocate(cswpth  )
        if(allocated(cldfrac) ) deallocate(cldfrac )
        if(allocated(taucld)  ) deallocate(taucld  )
+
 
  errmsg = 'rrtmg_lw_mpas_timestep_init OK'
  errflg = 0
@@ -714,6 +717,7 @@ subroutine rrtmg_lw_mpas_timestep_final( &
  integer:: i,k,ncol
  real,dimension(kts:kte):: tten1d
 
+ call mpas_log_write('--- enter subroutine rrtmg_lw_mpas_timestep_final:')
     ncol = 1
 
     i_loop: do i = its,ite
