@@ -48,7 +48,7 @@
                        pin,o3clim,                                &
                        has_reqc,has_reqi,has_reqs,re_cloud,       &
                        re_ice,re_snow,                            &
-                       ncol,nlay,icld,play,plev,tlay,  &
+                       ncol,nlayall,mpas_nlay,icld,play,plev,tlay,  &
                        tlev,tsfc,h2ovmr,o3vmr,co2vmr,ch4vmr,  &
                        n2ovmr,o2vmr,cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr, &
                        emis,inflglw,iceflglw,liqflglw,cldfmcl,taucmcl, &
@@ -88,14 +88,15 @@
  
 !--- output arguments:
 
- integer,intent(out):: ncol,nlay,icld,inflglw,iceflglw,liqflglw
+ integer,intent(out):: ncol,icld,inflglw,iceflglw,liqflglw,nlayall
+ integer,intent(out),dimension(its:ite)::mpas_nlay
  real,intent(out),dimension(:,:),allocatable:: &
     plev,tlev,play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
     cfc12vmr,cfc22vmr,ccl4vmr,relqmcl,reicmcl,resnmcl,rel,rei,res
  real,intent(out),dimension(:,:),allocatable:: uflx,dflx,uflxc,dflxc,hr,hrc
  real,intent(out),dimension(:,:,:),allocatable:: cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl,tauaer
- real,intent(out),dimension(1)::tsfc
- real,intent(out),dimension(1,nbndlw):: emis
+ real,intent(out),dimension(its:ite)::tsfc
+ real,intent(out),dimension(its:ite,nbndlw):: emis
  character(len=*),intent(out):: &
     errmsg       ! output error message (-).
 
@@ -103,7 +104,7 @@
     errflg       ! output error flag (-).
 
 !local variables and arrays:
- integer:: nb
+ integer:: nb,nlay
  integer:: iplon,irng,permuteseed
  integer:: pcols,pver
  integer:: idx_rei
@@ -123,7 +124,6 @@
 
 !--- additional local variables and arrays needed to include additional layers between the model top
 !    and the top of the atmosphere:
- integer,dimension(its:ite):: mpas_nlay
 
  real,dimension(:),allocatable:: o3mmr,varint
 
@@ -234,6 +234,7 @@
        enddo
 
        nlayers  = kte + 10 ! temporary value for allocation i-dependent
+       nlayall = nlayers
 
        if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
        if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
@@ -313,7 +314,8 @@
        !    the atmosphere: in contrast to WRF, MPAS columns have different model-top pressures since MPAS uses
        !    a height coordinate system. Therefore, we define nlayers for each individual column:
        nlayers = kte + max(nint(pw1d(kte+1)/deltap), 1)
-       mpas_nlay(i) = nlayers-kte
+!       mpas_nlay(i) = nlayers-kte
+       mpas_nlay(i) = nlayers
 !      write(0,*) i,kme,kte,nlayers,mpas_nlay(i),pw1d(kte+1),deltap
 !      101 format(6i9,3(1x,f9.4))
 

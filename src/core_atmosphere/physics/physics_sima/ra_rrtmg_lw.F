@@ -9552,7 +9552,7 @@ use module_wrf_error
 !------------------------------------------------------------------
 
       subroutine rrtmg_lw_run &
-            (ncol    ,nlay    ,icld    , &
+            (ncol    ,nlay    ,mpas_nlay    ,icld    , &
              play    ,plev    ,tlay    ,tlev    ,tsfc    , & 
              h2ovmr  ,o3vmr   ,co2vmr  ,ch4vmr  ,n2ovmr  ,o2vmr , &
              cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr ,emis    , &
@@ -9653,7 +9653,8 @@ use module_wrf_error
 
 ! ----- Input -----
       integer(kind=im), intent(in) :: ncol            ! Number of horizontal columns
-      integer(kind=im), intent(in) :: nlay            ! Number of model layers
+      integer(kind=im), intent(in) :: nlay            ! Number of model layers allocated
+      integer(kind=im), intent(in) :: mpas_nlay(:)    ! Number of model layers incl extra top
       integer(kind=im), intent(inout) :: icld         ! Cloud overlap method
                                                       !    0: Clear only
                                                       !    1: Random
@@ -9911,6 +9912,7 @@ use module_wrf_error
 
 !  This is the main longitude/column loop within RRTMG.
       do iplon = 1, ncol
+         nlayers = mpas_nlay(iplon)
 
 !  Prepare atmospheric profile from GCM for use in RRTMG, and define
 !  other input parameters.  
@@ -10005,7 +10007,7 @@ use module_wrf_error
             hrc(iplon,k+1) = htrc(k)
          enddo
 
-      enddo
+      enddo      ! end longitude loop iplon
 
  errmsg = 'rrtmg_lw_run OK'
  errflg = 0

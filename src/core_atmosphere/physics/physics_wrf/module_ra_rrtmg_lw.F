@@ -93,7 +93,8 @@ contains
  real(kind=kind_phys),dimension(its:ite,1:noznlevels):: o3clim_hv
 
 !local variables only needed for call to rrtmg_lw_run (column arrays allocated in rrtmg_lw_init)
- integer:: ncol,nlay,icld,inflglw,iceflglw,liqflglw
+ integer:: ncol,nlayall,icld,inflglw,iceflglw,liqflglw
+ integer,dimension(its:ite):: mpas_nlay
  real(kind=kind_phys),dimension(:,:),allocatable:: play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr
  real(kind=kind_phys),dimension(:,:),allocatable:: cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr
  real(kind=kind_phys),dimension(:,:),allocatable:: relqmcl,reicmcl,resnmcl,rei,rel,res
@@ -219,7 +220,7 @@ contains
                        pin,o3clim_hv,                                &
                        has_reqc,has_reqi,has_reqs,re_cloud_hv,       &
                        re_ice_hv,re_snow_hv,                            &
-                       ncol,nlay,icld,play,plev,tlay,  &
+                       ncol,nlayall,mpas_nlay,icld,play,plev,tlay,  &
                        tlev,tsfc,h2ovmr,o3vmr,co2vmr,ch4vmr,  &
                        n2ovmr,o2vmr,cfc11vmr,cfc12vmr,cfc22vmr,ccl4vmr, &
                        emis,inflglw,iceflglw,liqflglw,cldfmcl,taucmcl, &
@@ -234,7 +235,7 @@ contains
 
        !--- CALL TO THE RRTMG LONG WAVE RADIATION MODEL:
        call rrtmg_lw_run &
-                  (ncol    , nlay    , icld     , play     , plev     , tlay    , &
+                  (ncol    , nlayall , mpas_nlay, icld     , play     , plev     , tlay    , &
                    tlev    , tsfc    , h2ovmr   , o3vmr    , co2vmr   , ch4vmr  , &
                    n2ovmr  , o2vmr   , cfc11vmr , cfc12vmr , cfc22vmr , ccl4vmr , &
                    emis    , inflglw , iceflglw , liqflglw , cldfmcl  , taucmcl , & 
