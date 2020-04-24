@@ -718,35 +718,35 @@ subroutine rrtmg_lw_mpas_timestep_final( &
  real,dimension(kts:kte):: tten1d
 
  call mpas_log_write('--- enter subroutine rrtmg_lw_mpas_timestep_final:')
-    ncol = 1
+    ncol = ite-its+1
 
     i_loop: do i = its,ite
 
        !--- OUTPUTS:
-       glw(i)  = dflx(1,1)
-       olr(i)  = uflx(1,nlayers+1)
-       lwcf(i) = uflxc(1,nlayers+1) - uflx(1,nlayers+1)
+       glw(i)  = dflx(i,1)
+       olr(i)  = uflx(i,nlayers+1)
+       lwcf(i) = uflxc(i,nlayers+1) - uflx(i,nlayers+1)
 
        if(present(lwupt)) then
           !output up and down toa fluxes for total and clear sky:
-          lwupt(i)  = uflx(1,nlayers+1)
-          lwuptc(i) = uflxc(1,nlayers+1)
-          lwdnt(i)  = dflx(1,nlayers+1)
-          lwdntc(i) = dflxc(1,nlayers+1)
+          lwupt(i)  = uflx(i,nlayers+1)
+          lwuptc(i) = uflxc(i,nlayers+1)
+          lwdnt(i)  = dflx(i,nlayers+1)
+          lwdntc(i) = dflxc(i,nlayers+1)
           !output up and down surface fluxes for total and clear sky:
-          lwupb(i)  = uflx(1,1)
-          lwupbc(i) = uflxc(1,1)
-          lwdnb(i)  = dflx(1,1)
-          lwdnbc(i) = dflxc(1,1)
+          lwupb(i)  = uflx(i,1)
+          lwupbc(i) = uflxc(i,1)
+          lwdnb(i)  = dflx(i,1)
+          lwdnbc(i) = dflxc(i,1)
        endif
 
        if(present(lwupflx)) then
           !output up and down fluxes:
           do k=kts,nlayers+1
-             lwupflx(i,k)  = uflx(1,k)
-             lwupflxc(i,k) = uflxc(1,k)
-             lwdnflx(i,k)  = dflx(1,k)
-             lwdnflxc(i,k) = dflxc(1,k)
+             lwupflx(i,k)  = uflx(i,k)
+             lwupflxc(i,k) = uflxc(i,k)
+             lwdnflx(i,k)  = dflx(i,k)
+             lwdnflxc(i,k) = dflxc(i,k)
           enddo
        endif
 
@@ -757,7 +757,7 @@ subroutine rrtmg_lw_mpas_timestep_final( &
 
        !--- output heating rate tendency. convert heating rate from K per day to K per second:
        do k = kts, kte
-          tten1d(k) = hr(ncol,k)/86400.
+          tten1d(k) = hr(i,k)/86400.
           rthratenlw(i,k) = tten1d(k)/pi2d(i,k)
        enddo
 
@@ -765,12 +765,14 @@ subroutine rrtmg_lw_mpas_timestep_final( &
        if(icloud.gt.0 .and. present(rre_cloud) .and. present(rre_ice) .and. present(rre_snow)) then
           do k = kts, kte
              if(cldfra2d(i,k) .gt. 0.) then
-                rre_cloud(i,k) = rel(ncol,k)
-                rre_ice(i,k)   = rei(ncol,k)
-                rre_snow(i,k)  = res(ncol,k)
+                rre_cloud(i,k) = rel(i,k)
+                rre_ice(i,k)   = rei(i,k)
+                rre_snow(i,k)  = res(i,k)
              endif
           enddo
        endif
+
+    end do i_loop !end longitude loop.
 
        !--- deallocate local column arrays:
 !      if(allocated(o3mmr)   ) deallocate(o3mmr   )
@@ -813,7 +815,6 @@ subroutine rrtmg_lw_mpas_timestep_final( &
        if(allocated(taucmcl) ) deallocate(taucmcl )
        if(allocated(tauaer)  ) deallocate(tauaer  )
 
-    end do i_loop !end longitude loop.
 
  errmsg = 'rrtmg_lw_mpas_timestep_final OK'
  errflg = 0
