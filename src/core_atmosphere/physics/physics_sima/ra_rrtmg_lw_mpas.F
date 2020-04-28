@@ -125,7 +125,7 @@
 !--- additional local variables and arrays needed to include additional layers between the model top
 !    and the top of the atmosphere:
 
- real,dimension(:),allocatable:: o3mmr,varint
+ real,dimension(:),allocatable:: o3mmr,varint,p1dlev,p1dlay,t1dlay,rel1d,rei1d
 
 !--- additional local variables and arrays needed for the CAM ozone climatologyL
  real,dimension(1:noznlevels):: o3clim1d
@@ -228,6 +228,11 @@
 
        if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
        if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
+       if(.not.allocated(p1dlev)  ) allocate(p1dlev(kts:nlayers+1)  )
+       if(.not.allocated(p1dlay)  ) allocate(p1dlay(kts:nlayers)    )
+       if(.not.allocated(t1dlay)  ) allocate(t1dlay(kts:nlayers)    )
+       if(.not.allocated(rel1d)   ) allocate(rel1d(kts:nlayers)     )
+       if(.not.allocated(rei1d)   ) allocate(rei1d(kts:nlayers)     )
        if(.not.allocated(plev)    ) allocate(plev(its:ite,kts:nlayers+1)  )
        if(.not.allocated(tlev)    ) allocate(tlev(its:ite,kts:nlayers+1)  )
        if(.not.allocated(play)    ) allocate(play(its:ite,kts:nlayers)    )
@@ -320,7 +325,7 @@
 !      write(0,*) i,kme,kte,nlayers,mpas_nlay(i),pw1d(kte+1),deltap
 !      101 format(6i9,3(1x,f9.4))
 
-       nlay = nlayers ! keep these indices the same.
+       nlay = nlayall ! used for allocated vertical levels
 
        !--- initialize local arrays called in the calculation of the cloud optical properties and radiative
        !    fluxes:
@@ -364,7 +369,7 @@
        dflxc(i,nlayers+1) = 0.
 
     !--- fill local arrays with input sounding. convert water vapor mass mixing ratio to volume mixing ratio:
-    plev(i,1) = pw1d(1)
+       plev(i,1) = pw1d(1)
        tlev(i,1) = tw1d(1)
        tsfc(i)   = tsk(i)
        do k = kts, kte
@@ -446,12 +451,18 @@
 
        !--- initialize the ozone voume mixing ratio:
        pcols = 1
-       call inirad(o3mmr,plev(i,:),kts,nlayers-1)
+       do k = kts,nlayers
+          p1dlay(k) = play(i,k)
+          p1dlev(k) = plev(i,k)
+       enddo
+       p1dlev(nlayers+1) = plev(i,nlayers+1)
+       call inirad(o3mmr,p1dlev,kts,nlayers-1)
+
        if(o3input .eq. 2) then
           do k = 1, noznlevels
              o3clim1d(k) = o3clim(i,k)
           enddo
-          call vinterp_ozn(1,pcols,pcols,nlayers,play(i,:),pin,noznlevels,o3clim1d,o3mmr)
+          call vinterp_ozn(1,pcols,pcols,nlayers,p1dlay,pin,noznlevels,o3clim1d,o3mmr)
           do k = kts,nlayers
              o3vmr(i,k) = o3mmr(k)
           enddo
@@ -513,7 +524,14 @@
              snowh(pcols)    = 0.001*snow(i)
              icefrac(pcols)  = xice(i)
 
-             call relcalc(pcols,pcols,pver,tlay(i,:),landfrac,landm,icefrac,reliq(i,:),snowh)
+             do k = kts,nlayers
+                t1dlay(k) = tlay(i,k)
+             enddo
+             call relcalc(pcols,pcols,pver,t1dlay,landfrac,landm,icefrac,rel1d,snowh)
+             do k = kts,nlayers
+                rel(i,k) = rel1d(k)
+             enddo
+
           endif
 
           if(has_reqi .ne. 0) then
@@ -538,7 +556,13 @@
              !    Kristjansson and Mitchell. limit upper bound of reice for Fu ice parameterization and
              !    convert effective radius to generalized effective size (*1.0315; Fu, 1996):
 
-             call reicalc(pcols,pcols,pver,tlay,reice(i,:))
+             do k = kts,nlayers
+                t1dlay(k) = tlay(i,k)
+             enddo
+             call reicalc(pcols,pcols,pver,t1dlay,rei1d)
+             do k = kts,nlayers
+                rei(i,k) = rei1d(k)
+             enddo
 
              if(iceflglw .eq. 3) then
                 do k = kts, kte
@@ -635,6 +659,11 @@
 
        if(allocated(o3mmr)   ) deallocate(o3mmr   )
        if(allocated(varint)  ) deallocate(varint  )
+       if(allocated(p1dlev)  ) deallocate(p1dlev  )
+       if(allocated(p1dlay)  ) deallocate(p1dlay  )
+       if(allocated(t1dlay)  ) deallocate(t1dlay  )
+       if(allocated(rel1d)   ) deallocate(rel1d   )
+       if(allocated(rei1d)   ) deallocate(rei1d   )
        if(allocated(clwpth)  ) deallocate(clwpth  )
        if(allocated(ciwpth)  ) deallocate(ciwpth  )
        if(allocated(cswpth)  ) deallocate(cswpth  )
