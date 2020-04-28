@@ -223,16 +223,6 @@
  iceflglw = 3
  liqflglw = 1
 
-!--- latitude loop:
-
-!--- longitude loop:
-    i_loop: do i = its,ite
-
-       !--- set surface emissivity in each RRTMG longwave band:
-       do nb = 1, nbndlw
-          emis(i,nb) = emiss(i)
-       enddo
-
        nlayers  = kte + 10 ! temporary value for allocation i-dependent
        nlayall = nlayers
 
@@ -275,6 +265,17 @@
        if(.not.allocated(cswpmcl) ) allocate(cswpmcl(ngptlw,its:ite,kts:nlayers))
        if(.not.allocated(taucmcl) ) allocate(taucmcl(ngptlw,its:ite,kts:nlayers))
        if(.not.allocated(tauaer)  ) allocate(tauaer(its:ite,kts:nlayers,nbndlw) )
+
+!--- latitude loop:
+
+!--- longitude loop:
+    i_loop: do i = its,ite
+
+       !--- set surface emissivity in each RRTMG longwave band:
+       do nb = 1, nbndlw
+          emis(i,nb) = emiss(i)
+       enddo
+
 
        !--- INITIALIZE COLUMN SOUNDING 
 
