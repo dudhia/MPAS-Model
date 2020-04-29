@@ -2557,7 +2557,6 @@ use module_wrf_error
 !  Calculate the integrated Planck functions for each band at the
 !  surface, level, and layer temperatures.
       do lay = 1, nlayers
-!print *, 'debug setcoef nlayers, lay, tavel, pavel =',nlayers, lay, tavel(lay), pavel(lay)
          indlay = tavel(lay) - 159._rb
          if (indlay .lt. 1) then
             indlay = 1
