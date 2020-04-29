@@ -114,7 +114,7 @@
  real:: gliqwp,gicewp,gsnowp,gravmks
  real:: snow_mass_factor
  real,dimension(1):: landfrac,landm,snowh,icefrac
- real,dimension(1,1:kte-kts+1):: pdel,cliqwp,cicewp,csnowp,reliq,reice,resnow
+ real,dimension(its:ite,1:kte-kts+1):: pdel,cliqwp,cicewp,csnowp,reliq,reice,resnow
  real,dimension(:,:,:),allocatable:: taucld
  real,dimension(:,:),allocatable:: clwpth,ciwpth,cswpth,cldfrac
 
