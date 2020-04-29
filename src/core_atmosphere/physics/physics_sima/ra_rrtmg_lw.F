@@ -2557,6 +2557,7 @@ use module_wrf_error
 !  Calculate the integrated Planck functions for each band at the
 !  surface, level, and layer temperatures.
       do lay = 1, nlayers
+!print *, 'debug setcoef nlayers, lay, tavel, pavel =',nlayers, lay, tavel(lay), pavel(lay)
          indlay = tavel(lay) - 159._rb
          if (indlay .lt. 1) then
             indlay = 1
@@ -9917,12 +9918,12 @@ use module_wrf_error
 !  Prepare atmospheric profile from GCM for use in RRTMG, and define
 !  other input parameters.  
 
-         call inatm (iplon, nlay, icld, iaer, &
+         call inatm (iplon, nlay, nlayers, icld, iaer, &
               play, plev, tlay, tlev, tsfc, h2ovmr, &
               o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, cfc11vmr, cfc12vmr, &
               cfc22vmr, ccl4vmr, emis, inflglw, iceflglw, liqflglw, &
               cldfmcl, taucmcl, ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, tauaer, &
-              nlayers, pavel, pz, tavel, tz, tbound, semiss, coldry, &
+              pavel, pz, tavel, tz, tbound, semiss, coldry, &
               wkl, wbrodl, wx, pwvcm, inflag, iceflag, liqflag, &
               cldfmc, taucmc, ciwpmc, clwpmc, cswpmc, reicmc, relqmc, resnmc, taua)
 
@@ -10015,12 +10016,12 @@ use module_wrf_error
       end subroutine rrtmg_lw_run
 
 !***************************************************************************
-      subroutine inatm (iplon, nlay, icld, iaer, &
+      subroutine inatm (iplon, nlay, nlayers, icld, iaer, &
               play, plev, tlay, tlev, tsfc, h2ovmr, &
               o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, cfc11vmr, cfc12vmr, &
               cfc22vmr, ccl4vmr, emis, inflglw, iceflglw, liqflglw, &
               cldfmcl, taucmcl, ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, tauaer, &
-              nlayers, pavel, pz, tavel, tz, tbound, semiss, coldry, &
+              pavel, pz, tavel, tz, tbound, semiss, coldry, &
               wkl, wbrodl, wx, pwvcm, inflag, iceflag, liqflag, &
               cldfmc, taucmc, ciwpmc, clwpmc, cswpmc, reicmc, relqmc, resnmc, taua)
 !***************************************************************************
@@ -10041,6 +10042,8 @@ use module_wrf_error
 ! ----- Input -----
       integer(kind=im), intent(in) :: iplon           ! column loop index
       integer(kind=im), intent(in) :: nlay            ! Number of model layers
+      integer(kind=im), intent(in) :: nlayers        ! number of layers
+
       integer(kind=im), intent(in) :: icld            ! clear/cloud and cloud overlap flag
       integer(kind=im), intent(in) :: iaer            ! aerosol option flag
 
@@ -10102,8 +10105,6 @@ use module_wrf_error
 
 ! ----- Output -----
 ! Atmosphere
-      integer(kind=im), intent(out) :: nlayers        ! number of layers
-
       real(kind=rb), intent(out) :: pavel(:)          ! layer pressures (mb) 
                                                       !    Dimensions: (nlay)
       real(kind=rb), intent(out) :: tavel(:)          ! layer temperatures (K)
@@ -10178,7 +10179,7 @@ use module_wrf_error
       real(kind=rb) :: amm, amttl, wvttl, wvsh, summol  
 
 ! Add one to nlayers here to include extra model layer at top of atmosphere
-      nlayers = nlay
+!      nlayers = nlay    not needed because nlayers is now passed in using mpas_nlay(i)
 
 !  Initialize all molecular amounts and cloud properties to zero here, then pass input amounts
 !  into RRTM arrays below.
