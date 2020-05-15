@@ -4294,6 +4294,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:), pointer :: rdzu, rdzw, fzm, fzp, qv_init
       real (kind=RKIND), dimension(:,:), pointer :: t_init 
+      real (kind=RKIND), dimension(:), pointer:: ustm
 
       real (kind=RKIND), pointer :: cf1, cf2, cf3
 
@@ -4386,7 +4387,7 @@ module atm_time_integration
 
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
-      call mpas_pool_get_array(diag_physics,'ustm'  ,ustm  )
+      call mpas_pool_get_array(diag_physics,'ustm',ustm)
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
