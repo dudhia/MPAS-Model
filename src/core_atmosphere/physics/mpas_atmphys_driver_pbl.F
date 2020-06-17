@@ -641,7 +641,7 @@
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
-                )
+                 )
        call mpas_timer_stop('YSU')
 
     case("bl_mynn")
