@@ -232,6 +232,13 @@ CONTAINS
            T1D(i) =T3D(i,1,j)
         ENDDO
 
+        IF(specified_flux)THEN
+           DO i=its,ite
+              HFX(i,j)=heat_flux
+              QFX(i,j)=moisture_flux
+           ENDDO
+        ENDIF
+
         !  Sending array starting locations of optional variables may cause
         !  troubles, so we explicitly change the call.
 
@@ -248,7 +255,7 @@ CONTAINS
                 GZ1OZ0(ims,j),WSPD(ims,j),BR(ims,j),ISFFLX,DX2D,   &
                 SVP1,SVP2,SVP3,SVPT0,EP1,EP2,KARMAN,EOMEG,STBOLT,  &
                 P1000mb,                                           &
-                heat_flux, moisture_flux, specified_flux,          &
+                specified_flux,                                    &
                 ids,ide, jds,jde, kds,kde,                         &
                 ims,ime, jms,jme, kms,kme,                         &
                 its,ite, jts,jte, kts,kte                          &
@@ -274,7 +281,7 @@ CONTAINS
                      SVP1,SVP2,SVP3,SVPT0,EP1,EP2,                 &
                      KARMAN,EOMEG,STBOLT,                          &
                      P1000mb,                                      &
-                     heat_flux, moisture_flux, specified_flux,     &
+                     specified_flux,                               &
                      ids,ide, jds,jde, kds,kde,                    &
                      ims,ime, jms,jme, kms,kme,                    &
                      its,ite, jts,jte, kts,kte,                    &
@@ -296,7 +303,6 @@ CONTAINS
       REAL,     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
       REAL,     INTENT(IN )   ::        P1000mb
 
-      REAL,     INTENT(IN   ) ::        heat_flux, moisture_flux
       LOGICAL,  INTENT(IN   ) ::        specified_flux
 !
       REAL,     DIMENSION( ims:ime )                             , &
