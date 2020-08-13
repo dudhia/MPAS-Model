@@ -4292,7 +4292,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:), pointer :: rdzu, rdzw, fzm, fzp, qv_init
       real (kind=RKIND), dimension(:,:), pointer :: t_init 
-      real (kind=RKIND), dimension(:), pointer:: ustm
+      real (kind=RKIND), dimension(:), pointer:: ustm, hfx, qfx
 
       real (kind=RKIND), pointer :: cf1, cf2, cf3
 
@@ -4385,6 +4385,8 @@ module atm_time_integration
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
       call mpas_pool_get_array(diag_physics,'ustm',ustm)
+      call mpas_pool_get_array(diag_physics,'hfx',hfx)
+      call mpas_pool_get_array(diag_physics,'qfx',qfx)
 
       call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
@@ -4503,7 +4505,7 @@ module atm_time_integration
          config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
          config_mpas_cam_coef, &
          config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-         tend_rtheta_adv, rthdynten, ustm, &
+         tend_rtheta_adv, rthdynten, ustm, hfx, qfx, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4534,7 +4536,7 @@ module atm_time_integration
       config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
       config_mpas_cam_coef, &
       config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, config_number_rayleigh_damp_u_levels, &
-      tend_rtheta_adv, rthdynten, ustm, &
+      tend_rtheta_adv, rthdynten, ustm, hfx, qfx, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
       cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4592,7 +4594,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: eddy_visc_horz
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: eddy_visc_vert
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: bn2
-      real (kind=RKIND), dimension(nCells+1) :: ustm
+      real (kind=RKIND), dimension(nCells+1) :: ustm, hfx, qfx
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: prandtl_3d_inv
       real (kind=RKIND), dimension(maxEdges,nCells+1) :: edgesOnCell_sign
       real (kind=RKIND), dimension(vertexDegree,nVertices+1) :: edgesOnVertex_sign
@@ -5226,6 +5228,7 @@ module atm_time_integration
                                             index_tke, index_qv, num_scalars, mix_scalars,            &
                                             config_les_model, time_of_day_seconds,                    &
                                             ur_cell, vr_cell,                                         &
+                                            hfx, qfx,                                                 &
                                             tend_theta_euler                                         )
 
 
