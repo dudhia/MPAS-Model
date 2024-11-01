@@ -16,14 +16,13 @@
 
 module atm_time_integration
 
-   use mpas_derived_types
    use mpas_pool_routines
    use mpas_kind_types
    use mpas_constants
    use mpas_dmpar
    use mpas_vector_reconstruction
    ! Added only clause to keep xlf90 from getting confused from the overloaded abs intrinsic in mpas_timekeeping
-   use mpas_derived_types, only : MPAS_Time_type, MPAS_TimeInterval_type, MPAS_NOW
+   use mpas_derived_types, only : MPAS_NOW
    use mpas_timekeeping, only: MPAS_Time_type, MPAS_TimeInterval_type, mpas_get_clock_time, &
                                mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+), add_t_ti
    use mpas_timer
@@ -791,14 +790,6 @@ module atm_time_integration
             end if  
 
             call mpas_timer_start('atm_compute_dyn_tend')
-            block => domain % blocklist
-            do while (associated(block))
-               call mpas_pool_get_subpool(block % structs, 'state', state)
-               call mpas_pool_get_subpool(block % structs, 'diag', diag)
-               call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
-               call mpas_pool_get_subpool(block % structs, 'tend', tend)
-               call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
-               call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
    
             allocate(delsq_theta(nVertLevels,nCells+1))
             delsq_theta(:,nCells+1) = 0.0_RKIND
@@ -4325,7 +4316,6 @@ module atm_time_integration
       logical, pointer :: config_rayleigh_damp_u
       real (kind=RKIND), pointer :: config_rayleigh_damp_u_timescale_days
       integer, pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
-      integer, pointer :: config_number_rayleigh_damp_u_levels
       integer, pointer :: index_qv, index_qc, index_tke
 
       logical :: inactive_rthdynten
@@ -4497,7 +4487,7 @@ module atm_time_integration
          config_mpas_cam_coef, &
          config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, & 
          config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
-         tend_rtheta_adv, rthdynten, ustm, hfx, qfx, &
+         rthdynten, ustm, hfx, qfx, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -4525,7 +4515,7 @@ module atm_time_integration
       config_mpas_cam_coef, &
       config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, &
       config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
-      tend_rtheta_adv, rthdynten, ustm, hfx, qfx, &
+      rthdynten, ustm, hfx, qfx, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
       cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
