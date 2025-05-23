@@ -1417,6 +1417,7 @@ module init_atm_cases
       integer :: iCell, iCell1, iCell2 , iEdge, ivtx, i, k, nz, nz1, itr, cell1, cell2
       integer, pointer :: nEdges, nVertices, maxEdges, nCellsSolve
       integer, pointer :: index_qv
+      integer, pointer :: index_tke
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: zc, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
@@ -1552,6 +1553,7 @@ module init_atm_cases
       call mpas_pool_get_array(state, 'scalars', scalars)
 
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(state, 'index_tke', index_tke)
 
       scalars(:,:,:) = 0.
 
@@ -1866,6 +1868,18 @@ module init_atm_cases
           end if
            t (k,i) = thi(k,i)*(1.+1.61*scalars(index_qv,k,i))
         end do
+      end do
+!
+!  initial seed for tke
+!
+!     call mpas_log_write('index_qv $i ', intArgs=(/index_qv/))
+!     call mpas_log_write('index_tke $i ', intArgs=(/index_tke/))
+      scalars(index_tke,:,:) = 0.
+
+      do k = 1,nz1  
+          do i=1,nCells
+             scalars(index_tke,k,i) = 0.1
+          end do
       end do
 
       do itr=1,30
